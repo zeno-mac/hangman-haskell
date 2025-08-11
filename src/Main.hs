@@ -16,6 +16,7 @@ import Data.Maybe (isJust)
 import Data.List (intersperse)
 import System.Exit (exitSuccess)
 import System.Random (randomRIO)
+import Text.Read
 
 
 type WordList = [String]
@@ -26,6 +27,10 @@ maxWordLength :: Int
 maxWordLength = 9
 totalGuess :: Int 
 totalGuess = 10
+minDifficulty :: Int
+minDifficulty = 0
+maxDifficulty :: Int
+maxDifficulty = 5
 
 validateLength :: [a] -> Bool
 validateLength list = let l = length list in
@@ -58,8 +63,8 @@ instance Show Puzzle where
  showsPrec = undefined
  show (Puzzle _ discovered guessed guessesLeft) = intersperse ' ' (fmap renderPuzzleChar discovered) ++ "\nGuessed so far: " ++ guessed ++ "\nGuesses left: " ++ show guessesLeft
 
-freshPuzzle :: String -> Puzzle
-freshPuzzle string = Puzzle string (map (const Nothing) string) [] totalGuess
+freshPuzzle :: String -> Int-> Puzzle
+freshPuzzle string diff = Puzzle string (map (const Nothing) string) [] (totalGuess - diff)
 
 charInWord :: Puzzle -> Char -> Bool
 charInWord (Puzzle word _ _ _) char = char `elem` word
@@ -116,8 +121,25 @@ runGame puzzle = forever $ do
             else putStrLn "Your guess must be a letter!"
         _   -> putStrLn "Your guess must be a single character"
 
+selectDifficulty :: IO Int
+selectDifficulty = do
+    putStrLn $  "Please select a difficulty from " ++ show minDifficulty ++ " to " ++ show maxDifficulty
+    diff <-getLine
+    if isValidDifficulty diff
+        then return $ read diff
+        else do 
+            putStrLn "Invalid difficulty" 
+            selectDifficulty
+
+isValidDifficulty :: String -> Bool
+isValidDifficulty number = case readMaybe number :: Maybe Int of
+    Just n -> (n>= minDifficulty) && n <= maxDifficulty
+    Nothing -> False
+
+
 main :: IO ()
 main = do
+ diff <- selectDifficulty
  word <- randomWord'
- let puzzle = freshPuzzle (fmap toLower word)
+ let puzzle = freshPuzzle (fmap toLower word) diff
  runGame puzzle
