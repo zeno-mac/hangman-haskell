@@ -24,6 +24,8 @@ minWordLength :: Int
 minWordLength = 5
 maxWordLength :: Int
 maxWordLength = 9
+totalGuess :: Int 
+totalGuess = 10
 
 validateLength :: [a] -> Bool
 validateLength list = let l = length list in
@@ -50,65 +52,61 @@ randomWord wl = do
 randomWord' :: IO String
 randomWord' = gameWords >>= randomWord
 
-data Puzzle = Puzzle String [Maybe Char] [Char]
+data Puzzle = Puzzle String [Maybe Char] [Char] Int
 
 instance Show Puzzle where
  showsPrec = undefined
- show (Puzzle _ discovered guessed) = intersperse ' ' (fmap renderPuzzleChar discovered) ++ " Guessed so far: " ++ guessed
+ show (Puzzle _ discovered guessed guessesLeft) = intersperse ' ' (fmap renderPuzzleChar discovered) ++ " Guessed so far: " ++ guessed ++ " Guesses left: " ++ show guessesLeft
 
 freshPuzzle :: String -> Puzzle
-freshPuzzle string = Puzzle string (map (const Nothing) string) []
+freshPuzzle string = Puzzle string (map (const Nothing) string) [] totalGuess
 
 charInWord :: Puzzle -> Char -> Bool
-charInWord (Puzzle word _ _) char = char `elem` word
+charInWord (Puzzle word _ _ _) char = char `elem` word
 
 alreadyGuessed :: Puzzle -> Char -> Bool
-alreadyGuessed (Puzzle _ _ list) char = char `elem` list
+alreadyGuessed (Puzzle _ _ list _) char = char `elem` list
 
 renderPuzzleChar :: Maybe Char -> Char
 renderPuzzleChar Nothing = '_'
 renderPuzzleChar (Just char) = char
 
 fillInCharacter :: Puzzle -> Char -> Puzzle
-fillInCharacter (Puzzle word filledInSoFar s) c = Puzzle word newFilledWord (c:s) where
+fillInCharacter (Puzzle word filledInSoFar s guessLeft) c = Puzzle word newFilledWord (c:s) guessLeft where
     newFilledWord = zipWith (fill c) word filledInSoFar
     fill guess correctChar Nothing = if guess == correctChar then Just correctChar else Nothing
     fill _ _ guessed = guessed
 
 
 handleGuess :: Puzzle -> Char -> IO Puzzle
-handleGuess puzzle@(Puzzle word filledInSoFar guessedChar) guess
+handleGuess puzzle@(Puzzle word filledInSoFar guessedChar guessLeft) guess
     | alreadyGuessed puzzle guess = do
         putStrLn "You already guessed this letter, try another one!"
         return puzzle
     | not $ charInWord puzzle guess = do
         putStrLn "Sorry, this letter is not present!"
-        return $ Puzzle word filledInSoFar (guess:guessedChar)
+        return $ Puzzle word filledInSoFar (guess:guessedChar) (guessLeft-1)
     | otherwise = do
         putStrLn "Yes, the character was right, filled the word!"
         return $ fillInCharacter puzzle guess
 
-gameOver :: Puzzle -> IO ()
-gameOver (Puzzle wordToGuess _ guessed) =
- if length guessed > 7 then
-  do
-   putStrLn "You lose!"
-   putStrLn $ "The word was: " ++ wordToGuess
-   exitSuccess
-  else return ()
 
-gameWin :: Puzzle -> IO ()
-gameWin (Puzzle _ filledInSoFar _) =
- if all isJust filledInSoFar then
-  do 
-   putStrLn "You win!"
-   exitSuccess
-  else return ()
+
+checkGameState :: Puzzle -> IO ()
+checkGameState (Puzzle word filledInSoFar _ guessLeft) 
+    | guessLeft <= 0 =  do 
+        putStrLn "You lose!"
+        putStrLn $ "The word was: " ++ word
+        exitSuccess
+    | all isJust filledInSoFar = do
+        putStrLn "You win"
+        exitSuccess
+    |otherwise = return ()
+
 
 runGame :: Puzzle -> IO ()
 runGame puzzle = forever $ do
-    gameOver puzzle
-    gameWin puzzle
+    checkGameState puzzle
     putStrLn $ "Current puzzle is: " ++ show puzzle
     putStr "Guess a letter: "
     guess <- getLine
