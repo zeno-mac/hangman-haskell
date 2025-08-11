@@ -11,7 +11,7 @@
 
 module Main where
 import Control.Monad (forever)
-import Data.Char (toLower)
+import Data.Char (toLower,isAlpha)
 import Data.Maybe (isJust)
 import Data.List (intersperse)
 import System.Exit (exitSuccess)
@@ -56,7 +56,7 @@ data Puzzle = Puzzle String [Maybe Char] [Char] Int
 
 instance Show Puzzle where
  showsPrec = undefined
- show (Puzzle _ discovered guessed guessesLeft) = intersperse ' ' (fmap renderPuzzleChar discovered) ++ " Guessed so far: " ++ guessed ++ " Guesses left: " ++ show guessesLeft
+ show (Puzzle _ discovered guessed guessesLeft) = intersperse ' ' (fmap renderPuzzleChar discovered) ++ "\nGuessed so far: " ++ guessed ++ "\nGuesses left: " ++ show guessesLeft
 
 freshPuzzle :: String -> Puzzle
 freshPuzzle string = Puzzle string (map (const Nothing) string) [] totalGuess
@@ -108,12 +108,13 @@ runGame :: Puzzle -> IO ()
 runGame puzzle = forever $ do
     checkGameState puzzle
     putStrLn $ "Current puzzle is: " ++ show puzzle
-    putStr "Guess a letter: "
+    putStrLn "Guess a character: "
     guess <- getLine
     case guess of
-        [c] -> handleGuess puzzle c >>= runGame
+        [c] -> if isAlpha c
+            then handleGuess puzzle c >>= runGame
+            else putStrLn "Your guess must be a letter!"
         _   -> putStrLn "Your guess must be a single character"
-        
 
 main :: IO ()
 main = do
