@@ -15,6 +15,12 @@ cabal run MyHangman
 - You lose after 10 wrong guesses
 - Win by completing the word
 
+## Improvements from original
+- Only wrong guesses are considered to lose
+- Difficulty selection to determine the number of guesses
+- Input validation for the guesses
+- Possibilty to do other games after the first one
+
 ## Key concepts practiced
 
 - IO Monad for user input and randomness
