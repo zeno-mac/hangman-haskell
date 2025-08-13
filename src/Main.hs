@@ -78,7 +78,6 @@ checkGameState (Puzzle word filledInSoFar _ guessLeft)
     | all isJust filledInSoFar = return Win
     | otherwise = return InProgress
 
---- TODO Finish tunGame 
 runGame :: Puzzle -> IO ()
 runGame puzzle@(Puzzle word _ _ _) =  do
     gameState <- checkGameState puzzle
