@@ -13,20 +13,20 @@ module Main where
 import Control.Monad (forever)
 import Data.Char (toLower,isAlpha)
 import Data.Maybe (isJust)
-import Data.List (intersperse)
 import System.Exit (exitSuccess)
 import System.Random (randomRIO)
 import Text.Read
+import Puzzle
 
 
 type WordList = [String]
+data GameState = Win | Loss | InProgress
 
 minWordLength :: Int
 minWordLength = 5
 maxWordLength :: Int
 maxWordLength = 9
-totalGuess :: Int 
-totalGuess = 10
+
 minDifficulty :: Int
 minDifficulty = 0
 maxDifficulty :: Int
@@ -57,31 +57,6 @@ randomWord wl = do
 randomWord' :: IO String
 randomWord' = gameWords >>= randomWord
 
-data Puzzle = Puzzle String [Maybe Char] [Char] Int
-
-instance Show Puzzle where
- showsPrec = undefined
- show (Puzzle _ discovered guessed guessesLeft) = intersperse ' ' (fmap renderPuzzleChar discovered) ++ "\nGuessed so far: " ++ guessed ++ "\nGuesses left: " ++ show guessesLeft
-
-freshPuzzle :: String -> Int-> Puzzle
-freshPuzzle string diff = Puzzle string (map (const Nothing) string) [] (totalGuess - diff)
-
-charInWord :: Puzzle -> Char -> Bool
-charInWord (Puzzle word _ _ _) char = char `elem` word
-
-alreadyGuessed :: Puzzle -> Char -> Bool
-alreadyGuessed (Puzzle _ _ list _) char = char `elem` list
-
-renderPuzzleChar :: Maybe Char -> Char
-renderPuzzleChar Nothing = '_'
-renderPuzzleChar (Just char) = char
-
-fillInCharacter :: Puzzle -> Char -> Puzzle
-fillInCharacter (Puzzle word filledInSoFar s guessLeft) c = Puzzle word newFilledWord (c:s) guessLeft where
-    newFilledWord = zipWith (fill c) word filledInSoFar
-    fill guess correctChar Nothing = if guess == correctChar then Just correctChar else Nothing
-    fill _ _ guessed = guessed
-
 
 handleGuess :: Puzzle -> Char -> IO Puzzle
 handleGuess puzzle@(Puzzle word filledInSoFar guessedChar guessLeft) guess
@@ -97,29 +72,28 @@ handleGuess puzzle@(Puzzle word filledInSoFar guessedChar guessLeft) guess
 
 
 
-checkGameState :: Puzzle -> IO ()
+checkGameState :: Puzzle -> IO GameState
 checkGameState (Puzzle word filledInSoFar _ guessLeft) 
-    | guessLeft <= 0 =  do 
-        putStrLn "You lose!"
-        putStrLn $ "The word was: " ++ word
-        exitSuccess
-    | all isJust filledInSoFar = do
-        putStrLn "You win"
-        exitSuccess
-    |otherwise = return ()
+    | guessLeft <= 0 =  return Loss
+    | all isJust filledInSoFar = return Win
+    | otherwise = return InProgress
 
-
+--- TODO Finish tunGame 
 runGame :: Puzzle -> IO ()
-runGame puzzle = forever $ do
-    checkGameState puzzle
-    putStrLn $ "Current puzzle is: " ++ show puzzle
-    putStrLn "Guess a character: "
-    guess <- getLine
-    case guess of
-        [c] -> if isAlpha c
-            then handleGuess puzzle c >>= runGame
-            else putStrLn "Your guess must be a letter!"
-        _   -> putStrLn "Your guess must be a single character"
+runGame puzzle@(Puzzle word _ _ _) =  do
+    gameState <- checkGameState puzzle
+    case gameState of
+     Win -> putStrLn "You win!"
+     Loss -> putStrLn $ "You lose! The word was "++word 
+     InProgress -> do 
+      putStrLn $ "Current puzzle is: " ++ show puzzle
+      putStrLn "Guess a character: "
+      guess <- getLine
+      case guess of
+          [c] -> if isAlpha c
+              then handleGuess puzzle c >>= runGame
+              else putStrLn "Your guess must be a letter!"
+          _   -> putStrLn "Your guess must be a single character"
 
 selectDifficulty :: IO Int
 selectDifficulty = do
@@ -139,7 +113,33 @@ isValidDifficulty number = case readMaybe number :: Maybe Int of
 
 main :: IO ()
 main = do
+    wordList <- gameWords
+    startGame wordList
+
+startGame :: WordList -> IO ()
+startGame wordList= do
  diff <- selectDifficulty
- word <- randomWord'
+ word <- randomWord wordList
  let puzzle = freshPuzzle (fmap toLower word) diff
  runGame puzzle
+ continue <- askContine
+ if continue 
+    then startGame wordList
+    else return ()
+
+
+askContine :: IO Bool
+askContine = do 
+    putStrLn "Do you wish do continue? [y/n]"   
+    continue <-getLine
+    case map toLower continue of
+        "y" -> return True
+        _ -> return False
+
+
+
+ --- load words
+ --- startGame
+ --- difficultySelection
+ --- runGame
+ --- exitSelection
